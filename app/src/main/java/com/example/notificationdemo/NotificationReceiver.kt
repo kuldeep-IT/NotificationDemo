@@ -1,22 +1,24 @@
 package com.example.notificationdemo
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.PendingIntent.*
+import android.app.PendingIntent.FLAG_IMMUTABLE
+import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.media.RingtoneManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat.getSystemService
 import androidx.lifecycle.*
 import com.example.notificationdemo.util.DataStoreManager
 import com.example.notificationdemo.util.PreferenceKeys.NOTIFICATION_TONE_URI_KEY
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class NotificationReceiver : BroadcastReceiver(), LifecycleOwner {
 
@@ -28,16 +30,42 @@ class NotificationReceiver : BroadcastReceiver(), LifecycleOwner {
     lateinit var lifecycleRegistry: LifecycleRegistry
 
     lateinit var dataStoreManager: DataStoreManager
+    var notificationRingTone = ""
 
-        override fun onReceive(context: Context?, p1: Intent?) {
+    override fun onReceive(context: Context?, intent: Intent?) {
 
-            lifecycleRegistry = LifecycleRegistry(this)
-            lifecycleRegistry.markState(Lifecycle.State.CREATED)
+
+        if(intent != null) {
+            notificationRingTone = intent.getStringExtra("RING_TONE_NOTI")!!
+        }
+        Log.d("BROAD_CAST_LOG_TONE_INTENT", "pushNotification: " + notificationRingTone)
+
+        lifecycleRegistry = LifecycleRegistry(this)
+        lifecycleRegistry.markState(Lifecycle.State.CREATED)
 
         dataStoreManager = DataStoreManager(context!!)
+
+        dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData()
+            .observe(this, Observer {
+                Log.d("BROAD_CAST_LOG_TONE_IN", "pushNotification: " + it)
+
+                notificationRingTone = it
+            })
+        var abc =""
+        GlobalScope.launch {
+            abc   =
+                dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).first()
+        }
+
+
+
+        Log.d("BROAD_CAST_LOG_TONE_F", "onReceive: " + abc)
+
         pushNotification(context!!)
 
     }
+
+
 
     private fun pushNotification(context: Context) {
 
@@ -62,12 +90,9 @@ class NotificationReceiver : BroadcastReceiver(), LifecycleOwner {
 //                    RingtoneManager.TYPE_NOTIFICATION
 //                ).toString()
 //            )
-            var notificationRingTone = ""
-                dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData().observe(this, Observer {
-                    notificationRingTone = it
-                })
 
-            Log.d("BROAD_CAST_LOG_TONE", "pushNotification: "+ notificationRingTone)
+
+            Log.d("BROAD_CAST_LOG_TONE", "pushNotification: " + notificationRingTone)
 
             notificationChannel = NotificationChannel(
                 channelID,
@@ -100,15 +125,18 @@ class NotificationReceiver : BroadcastReceiver(), LifecycleOwner {
                     .setContentIntent(pendingIntent)
         }
 
-       /* notificationManager = context?.let { ctx ->
-            NotificationManagerCompat.from(ctx)
-        }*/
+        /* notificationManager = context?.let { ctx ->
+             NotificationManagerCompat.from(ctx)
+         }*/
 
-        notificationManager!!.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        notificationManager!!.notify(
+            System.currentTimeMillis().toInt(),
+            notificationBuilder.build()
+        )
     }
 
     override fun getLifecycle(): Lifecycle {
-       return lifecycleRegistry
+        return lifecycleRegistry
     }
 
 }

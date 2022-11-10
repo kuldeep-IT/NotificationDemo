@@ -116,6 +116,10 @@ class DataStoreManager(val context: Context) {
         }
     }
 
+    fun isKeyStored(key: Preferences.Key<String>): Flow<Boolean>  =
+        context.myDataStore.data.map {
+                preference -> preference.contains(key)
+        }
 
 
 }

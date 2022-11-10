@@ -11,10 +11,11 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.webkit.WebView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.asLiveData
 import com.example.notificationdemo.databinding.ActivityMainBinding
@@ -22,7 +23,7 @@ import com.example.notificationdemo.util.DataStoreManager
 import com.example.notificationdemo.util.PreferenceKeys.NOTIFICATION_TONE_URI_KEY
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -31,16 +32,45 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var alarmManager: AlarmManager
     lateinit var binding: ActivityMainBinding
-    private var currentToneUri: String? = ""
+    var currentToneUri: String = ""
 
     lateinit var dataStoreManager: DataStoreManager
 
     private val alarmPendingIntent by lazy {
+
+
+        dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData()
+            .observe(this@MainActivity) { str ->
+                Log.d("CURRENT_TONE_ON_CREATE", "onCreate: ITTTT :::" + str)
+                if (str == "null") {
+                    currentToneUri = RingtoneManager.getDefaultUri(
+                        RingtoneManager.TYPE_NOTIFICATION
+                    ).toString()
+                } else {
+                    currentToneUri = str
+                }
+
+            }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(1)
+            Log.d("CURRENT_TONE_ON_CREATE", "onCreate: delayed :: " + currentToneUri)
+
+        }
+
         val intent = Intent(applicationContext, NotificationReceiver::class.java)
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
-            PendingIntent.getBroadcast(applicationContext, 0, intent, FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT)
-        } else{
-            PendingIntent.getBroadcast(applicationContext, 0, intent,0)
+        intent.putExtra("RING_TONE_NOTI",currentToneUri)
+        sendBroadcast(intent)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.getBroadcast(
+                applicationContext,
+                0,
+                intent,
+                FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT
+            )
+        } else {
+            PendingIntent.getBroadcast(applicationContext, 0, intent, 0)
         }
     }
 
@@ -49,25 +79,43 @@ class MainActivity : AppCompatActivity() {
 
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
+
         dataStoreManager = DataStoreManager(applicationContext)
 
         alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-      dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData().observe(this) {
-          currentToneUri = it
-      }
+
+        dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData()
+            .observe(this@MainActivity) { str ->
+                Log.d("CURRENT_TONE_ON_CREATE", "onCreate: ITTTT :::" + str)
+                if (str == "null") {
+                    currentToneUri = RingtoneManager.getDefaultUri(
+                        RingtoneManager.TYPE_NOTIFICATION
+                    ).toString()
+                } else {
+                    currentToneUri = str
+                }
+
+            }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(1)
+            Log.d("CURRENT_TONE_ON_CREATE", "onCreate: delayed :: " + currentToneUri)
+
+        }
+
         binding.btn.setOnClickListener {
-            Toast.makeText(this,"Pressed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Pressed", Toast.LENGTH_SHORT).show()
             val calendar = Calendar.getInstance()
             alarmManager.setRepeating(
                 AlarmManager.RTC_WAKEUP,
                 calendar.timeInMillis,
-                6000*1,
+                6000 * 1,
                 alarmPendingIntent
             )
         }
 
 
-        binding.btnRingTone.setOnClickListener{
+        binding.btnRingTone.setOnClickListener {
 
             val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
             intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
@@ -89,7 +137,7 @@ class MainActivity : AppCompatActivity() {
 
         val notifications = getNotificationSounds(activity)
 
-        Log.d("NOT_LOGGG",notifications.toString())
+        Log.d("NOT_LOGGG", notifications.toString())
 
         try {
             val tone = notifications.getValue(notificationName)
@@ -98,10 +146,11 @@ class MainActivity : AppCompatActivity() {
         } catch (e: NoSuchElementException) {
             try {
                 // If sound not found, default to first one in list
-                val errorTone = RingtoneManager.getRingtone(context, Uri.parse(notifications.values.first()))
+                val errorTone =
+                    RingtoneManager.getRingtone(context, Uri.parse(notifications.values.first()))
                 errorTone.play()
             } catch (e: NoSuchElementException) {
-                Log.d("NOT_LOGGG","NO NOTIFICATION SOUNDS FOUND")
+                Log.d("NOT_LOGGG", "NO NOTIFICATION SOUNDS FOUND")
 
             }
         }
@@ -132,8 +181,17 @@ class MainActivity : AppCompatActivity() {
             currentToneUri = uri.toString()
 //            sharedPref.edit().putString(AppUtils.NOTIFICATION_TONE_URI_KEY, currentToneUri).apply()
             CoroutineScope(Dispatchers.IO).launch {
-                dataStoreManager.saveToneUriStringToDataStore(NOTIFICATION_TONE_URI_KEY,currentToneUri!!)
+                dataStoreManager.saveToneUriStringToDataStore(
+                    NOTIFICATION_TONE_URI_KEY,
+                    currentToneUri!!
+                )
             }
+
+
+//            Log.d("CURRENT_TONE_ON_CREATE", "Data is saved or not: " + dataStoreManager.isKeyStored(NOTIFICATION_TONE_URI_KEY).first())
+
+
+            Log.d("CURRENT_TONE_ON_CREATE", "onCreate: " + currentToneUri)
 
             val ringtone = RingtoneManager.getRingtone(applicationContext, uri)
             binding.btnRingTone.setText(ringtone.getTitle(applicationContext))
