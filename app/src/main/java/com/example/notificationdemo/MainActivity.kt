@@ -32,12 +32,14 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var alarmManager: AlarmManager
     lateinit var binding: ActivityMainBinding
-    var currentToneUri: String = ""
+
+    companion object{
+        var currentToneUri: String = ""
+    }
 
     lateinit var dataStoreManager: DataStoreManager
 
     private val alarmPendingIntent by lazy {
-
 
         dataStoreManager.readStringFromDataStore(NOTIFICATION_TONE_URI_KEY).asLiveData()
             .observe(this@MainActivity) { str ->
